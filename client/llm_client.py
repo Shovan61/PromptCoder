@@ -1,7 +1,10 @@
 import os
 import asyncio
 from openai import AsyncOpenAI
+from dotenv import load_dotenv
 
+# Load variables from .env
+load_dotenv()
 
 class LLMClient:
     def __init__(self) -> None:
@@ -10,8 +13,7 @@ class LLMClient:
     def get_client(self) -> AsyncOpenAI:
         if self._client is None:
             self._client = AsyncOpenAI(
-                api_key="",
-                base_url=""
+                api_key=os.getenv("API_KEY"), base_url=os.getenv("BASE_URL")
             )
         return self._client
 
