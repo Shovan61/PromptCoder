@@ -4,6 +4,10 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+from client.response import TokenUsage
+
+# from client.response import TokenUsage
+
 # Load variables from .env
 load_dotenv()
 
@@ -101,8 +105,52 @@ class LLMClient:
             text = None
             if response.text:
                 text = text
-            print(response.usage_metadata)
+
+            usage_info = self._extract_token_usage(response)
+
+            if usage_info:
+                usage = TokenUsage(
+                    prompt_tokens=usage_info["prompt_tokens"],
+                    completetion_tokens=usage_info["completion_tokens"],
+                    cached_tokens=usage_info["cached_tokens"],
+                    total_tokens=usage_info["total_tokens"],
+                )
+                print(usage)
 
         except Exception as e:
             print(f"API Error: {e}")
             raise
+
+    def _extract_token_usage(self, response):
+        """Extract token usage from Gemini response"""
+        usage_info = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cached_tokens": 0,
+        }
+
+        # Try to get usage metadata from response
+        if hasattr(response, "usage_metadata"):
+            usage_info["prompt_tokens"] = response.usage_metadata.prompt_token_count
+            usage_info["completion_tokens"] = (
+                response.usage_metadata.candidates_token_count
+            )
+            usage_info["total_tokens"] = response.usage_metadata.total_token_count
+            usage_info["cached_tokens"] = getattr(
+                response.usage_metadata, "cached_content_token_count", 0
+            )
+
+        # Alternative way to get token counts
+        elif hasattr(response, "_result") and hasattr(
+            response._result, "usage_metadata"
+        ):
+            usage = response._result.usage_metadata
+            usage_info["prompt_tokens"] = usage.prompt_token_count
+            usage_info["completion_tokens"] = usage.candidates_token_count
+            usage_info["total_tokens"] = usage.total_token_count
+            usage_info["cached_tokens"] = getattr(
+                usage, "cached_content_token_count", 0
+            )
+
+        return usage_info
