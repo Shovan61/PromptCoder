@@ -6,7 +6,7 @@ async def main():
     client = LLMClient()
     messages = [{"role": "user", "content": "Whats up?"}]  
     await client.chat_completetion(messages, False) 
-    await client.close()  # Added proper cleanup
+    await client.close() 
     print("done")
 
 
