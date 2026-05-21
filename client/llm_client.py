@@ -1,10 +1,10 @@
 import os
-from typing import Any
+from typing import Any, AsyncGenerator
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-from client.response import TokenUsage
+from client.response import EventType, StreamEvent, TokenUsage
 
 # from client.response import TokenUsage
 
@@ -29,7 +29,7 @@ class LLMClient:
 
     async def chat_completetion(
         self, messages: list[dict[str, Any]], stream: bool = True
-    ):
+    ) -> AsyncGenerator[StreamEvent, None]:
         client = self.get_client()
         model = "gemini-3-flash-preview"
 
@@ -48,9 +48,11 @@ class LLMClient:
                 client, model, contents, generate_content_config
             )
         else:
-            await self._non_stream_response(
+            event = await self._non_stream_response(
                 client, model, contents, generate_content_config
             )
+            yield event
+        return
 
     def _convert_messages_to_gemini_format(self, messages: list[dict[str, Any]]):
         """Convert OpenAI-style messages to Gemini format"""
@@ -88,13 +90,15 @@ class LLMClient:
             for chunk in response_stream:
                 if chunk.text:
                     print(chunk.text, end="", flush=True)
-            print()  # New line after stream ends
+            print()
 
         except Exception as e:
             print(f"Streaming error: {e}")
             raise
 
-    async def _non_stream_response(self, client, model, contents, config):
+    async def _non_stream_response(
+        self, client, model, contents, config
+    ) -> StreamEvent:
         """Handle non-streaming responses"""
         try:
             response = client.models.generate_content(
@@ -104,9 +108,10 @@ class LLMClient:
             )
             text = None
             if response.text:
-                text = text
+                text_delta = text
 
             usage_info = self._extract_token_usage(response)
+            usage = None
 
             if usage_info:
                 usage = TokenUsage(
@@ -115,7 +120,13 @@ class LLMClient:
                     cached_tokens=usage_info["cached_tokens"],
                     total_tokens=usage_info["total_tokens"],
                 )
-                print(usage)
+            print(response.candidates[0].finish_reason)
+            return StreamEvent(
+                type=EventType.MESSAGE_COMPLETE,
+                text_delta=text_delta,
+                finish_reason=str(response.candidates[0].finish_reason),
+                usage=usage,
+            )
 
         except Exception as e:
             print(f"API Error: {e}")
