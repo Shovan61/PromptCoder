@@ -26,7 +26,6 @@ class LLMClient:
     async def chat_completetion(
         self, messages: list[dict[str, Any]], stream: bool = True
     ) -> AsyncGenerator[StreamEvent, None]:
-        """Returns async generator that yields StreamEvent objects chunk by chunk"""
         client = self.get_client()
         model = "gemini-3-flash-preview"
 
@@ -39,13 +38,12 @@ class LLMClient:
         )
 
         if stream:
-            # Yield each chunk as it arrives
+            # Use async for to yield events from _stream_response
             async for event in self._stream_response(
                 client, model, contents, generate_content_config
             ):
                 yield event
         else:
-            # Yield single complete response
             event = await self._non_stream_response(
                 client, model, contents, generate_content_config
             )
@@ -88,7 +86,7 @@ class LLMClient:
             # Iterate through sync generator
             for chunk in response_stream:
                 if chunk.text:
-                    # Yield each chunk as TEXT_DELTA event for UI
+                    # Yield each chunk as TEXT_DELTA event
                     yield StreamEvent(
                         type=EventType.TEXT_DELTA,
                         text_delta=TextDelta(content=chunk.text),

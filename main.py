@@ -8,7 +8,6 @@ async def main():
     async for event in client.chat_completetion(messages, True):
         print(event)
     await client.close()
-    print("done")
-
+ 
 
 asyncio.run(main())
