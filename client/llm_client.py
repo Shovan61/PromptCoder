@@ -120,7 +120,7 @@ class LLMClient:
                     cached_tokens=usage_info["cached_tokens"],
                     total_tokens=usage_info["total_tokens"],
                 )
-            print(response.candidates[0].finish_reason)
+
             return StreamEvent(
                 type=EventType.MESSAGE_COMPLETE,
                 text_delta=text_delta,
