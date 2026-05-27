@@ -4,11 +4,8 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-from client.response import EventType, StreamEvent, TokenUsage
+from client.response import EventType, StreamEvent, TokenUsage, TextDelta
 
-# from client.response import TokenUsage
-
-# Load variables from .env
 load_dotenv()
 
 
@@ -24,19 +21,17 @@ class LLMClient:
         return self._client
 
     async def close(self) -> None:
-        # Gemini client doesn't need explicit closing, but keeping for compatibility
         self._client = None
 
     async def chat_completetion(
         self, messages: list[dict[str, Any]], stream: bool = True
     ) -> AsyncGenerator[StreamEvent, None]:
+        """Returns async generator that yields StreamEvent objects chunk by chunk"""
         client = self.get_client()
         model = "gemini-3-flash-preview"
 
-        # Convert your messages format to Gemini's format
         contents = self._convert_messages_to_gemini_format(messages)
 
-        # Configure generation
         generate_content_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 thinking_level="HIGH",
@@ -44,25 +39,25 @@ class LLMClient:
         )
 
         if stream:
-            await self._stream_response(
+            # Yield each chunk as it arrives
+            async for event in self._stream_response(
                 client, model, contents, generate_content_config
-            )
+            ):
+                yield event
         else:
+            # Yield single complete response
             event = await self._non_stream_response(
                 client, model, contents, generate_content_config
             )
             yield event
-        return
 
     def _convert_messages_to_gemini_format(self, messages: list[dict[str, Any]]):
         """Convert OpenAI-style messages to Gemini format"""
         contents = []
         for msg in messages:
-            # Convert role names
             if msg["role"] == "assistant":
                 role = "model"
             elif msg["role"] == "system":
-                # Handle system messages by adding as user with prefix
                 content = f"System instruction: {msg['content']}"
                 role = "user"
             else:
@@ -78,23 +73,47 @@ class LLMClient:
             )
         return contents
 
-    async def _stream_response(self, client, model, contents, config):
-        """Handle streaming responses"""
+    async def _stream_response(
+        self, client, model, contents, config
+    ) -> AsyncGenerator[StreamEvent, None]:
+        """Handle streaming responses - yields chunks for real-time UI updates"""
         try:
+            # Gemini returns a sync generator
             response_stream = client.models.generate_content_stream(
                 model=model,
                 contents=contents,
                 config=config,
             )
 
+            # Iterate through sync generator
             for chunk in response_stream:
                 if chunk.text:
-                    print(chunk.text, end="", flush=True)
-            print()
+                    # Yield each chunk as TEXT_DELTA event for UI
+                    yield StreamEvent(
+                        type=EventType.TEXT_DELTA,
+                        text_delta=TextDelta(content=chunk.text),
+                        error=None,
+                        finish_reason=None,
+                        usage=None
+                    )
+            
+            # Yield completion event when done
+            yield StreamEvent(
+                type=EventType.MESSAGE_COMPLETE,
+                text_delta=None,
+                error=None,
+                finish_reason="STOP",
+                usage=None
+            )
 
         except Exception as e:
-            print(f"Streaming error: {e}")
-            raise
+            yield StreamEvent(
+                type=EventType.ERROR,
+                text_delta=None,
+                error=str(e),
+                finish_reason=None,
+                usage=None
+            )
 
     async def _non_stream_response(
         self, client, model, contents, config
@@ -106,9 +125,8 @@ class LLMClient:
                 contents=contents,
                 config=config,
             )
-            text = None
-            if response.text:
-                text_delta = text
+            
+            text = response.text if response.text else None
 
             usage_info = self._extract_token_usage(response)
             usage = None
@@ -121,16 +139,26 @@ class LLMClient:
                     total_tokens=usage_info["total_tokens"],
                 )
 
+            finish_reason = None
+            if response.candidates and len(response.candidates) > 0:
+                finish_reason = str(response.candidates[0].finish_reason)
+
             return StreamEvent(
                 type=EventType.MESSAGE_COMPLETE,
-                text_delta=text_delta,
-                finish_reason=str(response.candidates[0].finish_reason),
+                text_delta=TextDelta(content=text) if text else None,
+                finish_reason=finish_reason,
                 usage=usage,
+                error=None
             )
 
         except Exception as e:
-            print(f"API Error: {e}")
-            raise
+            return StreamEvent(
+                type=EventType.ERROR,
+                text_delta=None,
+                error=str(e),
+                finish_reason=None,
+                usage=None
+            )
 
     def _extract_token_usage(self, response):
         """Extract token usage from Gemini response"""
@@ -141,27 +169,19 @@ class LLMClient:
             "cached_tokens": 0,
         }
 
-        # Try to get usage metadata from response
         if hasattr(response, "usage_metadata"):
             usage_info["prompt_tokens"] = response.usage_metadata.prompt_token_count
-            usage_info["completion_tokens"] = (
-                response.usage_metadata.candidates_token_count
-            )
+            usage_info["completion_tokens"] = response.usage_metadata.candidates_token_count
             usage_info["total_tokens"] = response.usage_metadata.total_token_count
             usage_info["cached_tokens"] = getattr(
                 response.usage_metadata, "cached_content_token_count", 0
             )
 
-        # Alternative way to get token counts
-        elif hasattr(response, "_result") and hasattr(
-            response._result, "usage_metadata"
-        ):
+        elif hasattr(response, "_result") and hasattr(response._result, "usage_metadata"):
             usage = response._result.usage_metadata
             usage_info["prompt_tokens"] = usage.prompt_token_count
             usage_info["completion_tokens"] = usage.candidates_token_count
             usage_info["total_tokens"] = usage.total_token_count
-            usage_info["cached_tokens"] = getattr(
-                usage, "cached_content_token_count", 0
-            )
+            usage_info["cached_tokens"] = getattr(usage, "cached_content_token_count", 0)
 
         return usage_info
