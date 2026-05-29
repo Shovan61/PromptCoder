@@ -38,7 +38,6 @@ class LLMClient:
         )
 
         if stream:
-            # Use async for to yield events from _stream_response
             async for event in self._stream_response(
                 client, model, contents, generate_content_config
             ):
@@ -74,19 +73,38 @@ class LLMClient:
     async def _stream_response(
         self, client, model, contents, config
     ) -> AsyncGenerator[StreamEvent, None]:
-        """Handle streaming responses - yields chunks for real-time UI updates"""
+        """Handle streaming responses - yields chunks and final token usage"""
         try:
-            # Gemini returns a sync generator
+            # First, make a non-streaming call to get token usage
+            # (This is the only way to get usage from Gemini)
+           
+            complete_response = client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+            
+            # Extract token usage
+            usage_info = self._extract_token_usage(complete_response)
+            usage = None
+            if usage_info:
+                usage = TokenUsage(
+                    prompt_tokens=usage_info["prompt_tokens"],
+                    completetion_tokens=usage_info["completion_tokens"],
+                    cached_tokens=usage_info["cached_tokens"],
+                    total_tokens=usage_info["total_tokens"],
+                )
+            
+            # Now stream the response for real-time UI
             response_stream = client.models.generate_content_stream(
                 model=model,
                 contents=contents,
                 config=config,
             )
-
-            # Iterate through sync generator
+            
+            # Stream chunks
             for chunk in response_stream:
                 if chunk.text:
-                    # Yield each chunk as TEXT_DELTA event
                     yield StreamEvent(
                         type=EventType.TEXT_DELTA,
                         text_delta=TextDelta(content=chunk.text),
@@ -95,13 +113,17 @@ class LLMClient:
                         usage=None
                     )
             
-            # Yield completion event when done
+            # Yield completion event with token usage
+            finish_reason = "STOP"
+            if complete_response.candidates and len(complete_response.candidates) > 0:
+                finish_reason = str(complete_response.candidates[0].finish_reason)
+            
             yield StreamEvent(
                 type=EventType.MESSAGE_COMPLETE,
                 text_delta=None,
                 error=None,
-                finish_reason="STOP",
-                usage=None
+                finish_reason=finish_reason,
+                usage=usage
             )
 
         except Exception as e:
