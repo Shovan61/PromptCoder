@@ -34,11 +34,6 @@ async def main(prompt: str | None):
         return
 
     print(prompt)
-    client = LLMClient()
-    messages = [{"role": "user", "content": prompt}]
-    async for event in client.chat_completetion(messages, True):
-        print(event)
-    await client.close()
-
+    
 
 main()
