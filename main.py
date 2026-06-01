@@ -15,7 +15,6 @@ class CLI:
 
 
 def async_command(f):
-    """Decorator to make Click work with async functions"""
 
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -34,6 +33,6 @@ async def main(prompt: str | None):
         return
 
     print(prompt)
-    
+
 
 main()
