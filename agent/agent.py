@@ -14,6 +14,7 @@ class Agent:
         # add user message to context
         async for event in self._agentic_loop():
             yield event
+        yield AgentEvent.agent_end()
 
     async def _agentic_loop(self) -> AsyncGenerator[AgentEvent]:
         messages = [{"role": "user", "content": "Hi whats going on"}]
