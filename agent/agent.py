@@ -36,6 +36,12 @@ class Agent:
     async def __aenter__(self) -> Agent:
         return self
 
-
-    async def __aexit__(self, exc_type) -> None:
-        await self.client.close()
+    async def __aexit__(
+        self,
+        exc_type,
+        exc_val,
+        exc_tb,
+    ) -> None:
+        if self.client:
+            await self.client.close()
+            self.client = None
