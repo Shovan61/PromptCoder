@@ -17,6 +17,13 @@ class CLI:
             self.agent = agent
             self._process_message(message)
 
+    async def _process_message(self, message: str) -> str | None:
+        if not self.agent:
+            return None
+        async for event in self.agent.run(message):
+            if event.type == AgentEventType.TEXT_DELTA:
+                content = event.data.get("content", "")
+
 
 def async_command(f):
     @wraps(f)
@@ -24,14 +31,6 @@ def async_command(f):
         return asyncio.run(f(*args, **kwargs))
 
     return wrapper
-
-
-async def _process_message(self, message: str) -> str | None:
-    if not self.agent:
-        return None
-    async for event in self.agent.run(message):
-        if event.type == AgentEventType.TEXT_DELTA:
-            content = event.data.get("content", "")
 
 
 @click.command()
