@@ -7,10 +7,16 @@ from client.llm_client import LLMClient
 
 import click
 
+from ui.tui import TUI, get_console
+
+console = get_console()
+
 
 class CLI:
     def __init__(self):
+
         self.agent: Agent | None = None
+        self.tui = TUI(console=console)
 
     async def run_single(self, message: str):
         async with Agent() as agent:
@@ -23,6 +29,7 @@ class CLI:
         async for event in self.agent.run(message):
             if event.type == AgentEventType.TEXT_DELTA:
                 content = event.data.get("content", "")
+                self.tui.stream_assistant_delta(content=content)
 
 
 def async_command(f):
