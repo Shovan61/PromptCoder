@@ -1,4 +1,6 @@
+import asyncio
 import os
+import random
 from typing import Any, AsyncGenerator
 from google import genai
 from google.genai import types
@@ -12,6 +14,12 @@ load_dotenv()
 class LLMClient:
     def __init__(self) -> None:
         self._client: genai.Client | None = None
+        self.min_delay = 0.1
+        self.max_delay = 0.3
+
+    def _get_typing_delay(self) -> float:
+        """Get random delay between min and max for natural typing"""
+        return random.uniform(self.min_delay, self.max_delay)
 
     def get_client(self) -> genai.Client:
         if self._client is None:
@@ -77,13 +85,13 @@ class LLMClient:
         try:
             # First, make a non-streaming call to get token usage
             # (This is the only way to get usage from Gemini)
-           
+
             complete_response = client.models.generate_content(
                 model=model,
                 contents=contents,
                 config=config,
             )
-            
+
             # Extract token usage
             usage_info = self._extract_token_usage(complete_response)
             usage = None
@@ -94,36 +102,39 @@ class LLMClient:
                     cached_tokens=usage_info["cached_tokens"],
                     total_tokens=usage_info["total_tokens"],
                 )
-            
+
             # Now stream the response for real-time UI
             response_stream = client.models.generate_content_stream(
                 model=model,
                 contents=contents,
                 config=config,
             )
-            
+
             # Stream chunks
             for chunk in response_stream:
+                # Random delay for natural typing feel
+                delay = self._get_typing_delay()
+                await asyncio.sleep(delay)
                 if chunk.text:
                     yield StreamEvent(
                         type=StreamEventType.TEXT_DELTA,
                         text_delta=TextDelta(content=chunk.text),
                         error=None,
                         finish_reason=None,
-                        usage=None
+                        usage=None,
                     )
-            
+
             # Yield completion event with token usage
             finish_reason = "STOP"
             if complete_response.candidates and len(complete_response.candidates) > 0:
                 finish_reason = str(complete_response.candidates[0].finish_reason)
-            
+
             yield StreamEvent(
                 type=StreamEventType.MESSAGE_COMPLETE,
                 text_delta=None,
                 error=None,
                 finish_reason=finish_reason,
-                usage=usage
+                usage=usage,
             )
 
         except Exception as e:
@@ -132,7 +143,7 @@ class LLMClient:
                 text_delta=None,
                 error=str(e),
                 finish_reason=None,
-                usage=None
+                usage=None,
             )
 
     async def _non_stream_response(
@@ -145,7 +156,7 @@ class LLMClient:
                 contents=contents,
                 config=config,
             )
-            
+
             text = response.text if response.text else None
 
             usage_info = self._extract_token_usage(response)
@@ -168,7 +179,7 @@ class LLMClient:
                 text_delta=TextDelta(content=text) if text else None,
                 finish_reason=finish_reason,
                 usage=usage,
-                error=None
+                error=None,
             )
 
         except Exception as e:
@@ -177,7 +188,7 @@ class LLMClient:
                 text_delta=None,
                 error=str(e),
                 finish_reason=None,
-                usage=None
+                usage=None,
             )
 
     def _extract_token_usage(self, response):
@@ -191,17 +202,23 @@ class LLMClient:
 
         if hasattr(response, "usage_metadata"):
             usage_info["prompt_tokens"] = response.usage_metadata.prompt_token_count
-            usage_info["completion_tokens"] = response.usage_metadata.candidates_token_count
+            usage_info["completion_tokens"] = (
+                response.usage_metadata.candidates_token_count
+            )
             usage_info["total_tokens"] = response.usage_metadata.total_token_count
             usage_info["cached_tokens"] = getattr(
                 response.usage_metadata, "cached_content_token_count", 0
             )
 
-        elif hasattr(response, "_result") and hasattr(response._result, "usage_metadata"):
+        elif hasattr(response, "_result") and hasattr(
+            response._result, "usage_metadata"
+        ):
             usage = response._result.usage_metadata
             usage_info["prompt_tokens"] = usage.prompt_token_count
             usage_info["completion_tokens"] = usage.candidates_token_count
             usage_info["total_tokens"] = usage.total_token_count
-            usage_info["cached_tokens"] = getattr(usage, "cached_content_token_count", 0)
+            usage_info["cached_tokens"] = getattr(
+                usage, "cached_content_token_count", 0
+            )
 
         return usage_info
