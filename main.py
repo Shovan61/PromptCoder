@@ -1,5 +1,6 @@
 import asyncio
 from functools import wraps
+import sys
 from agent.agent import Agent
 from agent.events import AgentEventType
 from client.llm_client import LLMClient
@@ -18,10 +19,10 @@ class CLI:
         self.agent: Agent | None = None
         self.tui = TUI(console=console)
 
-    async def run_single(self, message: str):
+    async def run_single(self, message: str) -> str | None:
         async with Agent() as agent:
             self.agent = agent
-            self._process_message(message)
+            return await self._process_message(message)
 
     async def _process_message(self, message: str) -> str | None:
         if not self.agent:
@@ -46,7 +47,10 @@ def async_command(f):
 async def main(prompt: str | None):
     cli = CLI()
     if prompt:
-        asyncio.run(cli.run_single(prompt))
+        result = await cli.run_single(prompt)
+        if result is None:
+            print("Nothing Returned!")
+            sys.exit(1)
     if prompt is None:
         # If no prompt provided, show help
         click.echo("Please provide a prompt. Usage: python main.py 'Your prompt here'")

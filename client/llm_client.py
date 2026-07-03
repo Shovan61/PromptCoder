@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-from client.response import EventType, StreamEvent, TokenUsage, TextDelta
+from client.response import StreamEventType, StreamEvent, TokenUsage, TextDelta
 
 load_dotenv()
 
@@ -106,7 +106,7 @@ class LLMClient:
             for chunk in response_stream:
                 if chunk.text:
                     yield StreamEvent(
-                        type=EventType.TEXT_DELTA,
+                        type=StreamEventType.TEXT_DELTA,
                         text_delta=TextDelta(content=chunk.text),
                         error=None,
                         finish_reason=None,
@@ -119,7 +119,7 @@ class LLMClient:
                 finish_reason = str(complete_response.candidates[0].finish_reason)
             
             yield StreamEvent(
-                type=EventType.MESSAGE_COMPLETE,
+                type=StreamEventType.MESSAGE_COMPLETE,
                 text_delta=None,
                 error=None,
                 finish_reason=finish_reason,
@@ -128,7 +128,7 @@ class LLMClient:
 
         except Exception as e:
             yield StreamEvent(
-                type=EventType.ERROR,
+                type=StreamEventType.ERROR,
                 text_delta=None,
                 error=str(e),
                 finish_reason=None,
@@ -164,7 +164,7 @@ class LLMClient:
                 finish_reason = str(response.candidates[0].finish_reason)
 
             return StreamEvent(
-                type=EventType.MESSAGE_COMPLETE,
+                type=StreamEventType.MESSAGE_COMPLETE,
                 text_delta=TextDelta(content=text) if text else None,
                 finish_reason=finish_reason,
                 usage=usage,
@@ -173,7 +173,7 @@ class LLMClient:
 
         except Exception as e:
             return StreamEvent(
-                type=EventType.ERROR,
+                type=StreamEventType.ERROR,
                 text_delta=None,
                 error=str(e),
                 finish_reason=None,

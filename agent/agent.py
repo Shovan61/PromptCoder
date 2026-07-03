@@ -1,5 +1,7 @@
-from typing import AsyncGenerator
 from __future__ import annotations
+
+from typing import AsyncGenerator
+
 from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
 from client.response import StreamEventType

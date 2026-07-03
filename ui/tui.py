@@ -41,7 +41,7 @@ def get_console() -> Console:
 
 class TUI:
     def __init__(self, console: Console | None) -> None:
-        self.console = console | get_console()
+        self.console = console or get_console()
 
     def stream_assistant_delta(self, content) -> None:
         self.console.print(content, end="", markup=False)
