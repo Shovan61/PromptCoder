@@ -35,13 +35,13 @@ class LLMClient:
         self, messages: list[dict[str, Any]], stream: bool = True
     ) -> AsyncGenerator[StreamEvent, None]:
         client = self.get_client()
-        model = "gemini-3-flash-preview"
+        model = "gemini-3.1-flash-lite"
 
         contents = self._convert_messages_to_gemini_format(messages)
 
         generate_content_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                thinking_level="HIGH",
+                thinking_level="MINIMAL",
             ),
         )
 
@@ -78,41 +78,89 @@ class LLMClient:
             )
         return contents
 
+    # async def _stream_response(
+    #     self, client, model, contents, config
+    # ) -> AsyncGenerator[StreamEvent, None]:
+    #     """Handle streaming responses - yields chunks and final token usage"""
+    #     try:
+    #         # First, make a non-streaming call to get token usage
+    #         # (This is the only way to get usage from Gemini)
+
+    #         complete_response = client.models.generate_content(
+    #             model=model,
+    #             contents=contents,
+    #             config=config,
+    #         )
+
+    #         # Extract token usage
+    #         usage_info = self._extract_token_usage(complete_response)
+    #         usage = None
+    #         if usage_info:
+    #             usage = TokenUsage(
+    #                 prompt_tokens=usage_info["prompt_tokens"],
+    #                 completetion_tokens=usage_info["completion_tokens"],
+    #                 cached_tokens=usage_info["cached_tokens"],
+    #                 total_tokens=usage_info["total_tokens"],
+    #             )
+
+    #         # Now stream the response for real-time UI
+    #         response_stream = client.models.generate_content_stream(
+    #             model=model,
+    #             contents=contents,
+    #             config=config,
+    #         )
+
+    #         # Stream chunks
+    #         for chunk in response_stream:
+    #             # Random delay for natural typing feel
+    #             delay = self._get_typing_delay()
+    #             await asyncio.sleep(delay)
+    #             if chunk.text:
+    #                 yield StreamEvent(
+    #                     type=StreamEventType.TEXT_DELTA,
+    #                     text_delta=TextDelta(content=chunk.text),
+    #                     error=None,
+    #                     finish_reason=None,
+    #                     usage=None,
+    #                 )
+
+    #         # Yield completion event with token usage
+    #         finish_reason = "STOP"
+    #         if complete_response.candidates and len(complete_response.candidates) > 0:
+    #             finish_reason = str(complete_response.candidates[0].finish_reason)
+
+    #         yield StreamEvent(
+    #             type=StreamEventType.MESSAGE_COMPLETE,
+    #             text_delta=None,
+    #             error=None,
+    #             finish_reason=finish_reason,
+    #             usage=usage,
+    #         )
+
+    #     except Exception as e:
+    #         yield StreamEvent(
+    #             type=StreamEventType.ERROR,
+    #             text_delta=None,
+    #             error=str(e),
+    #             finish_reason=None,
+    #             usage=None,
+    #         )
+
     async def _stream_response(
         self, client, model, contents, config
     ) -> AsyncGenerator[StreamEvent, None]:
-        """Handle streaming responses - yields chunks and final token usage"""
         try:
-            # First, make a non-streaming call to get token usage
-            # (This is the only way to get usage from Gemini)
-
-            complete_response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config,
-            )
-
-            # Extract token usage
-            usage_info = self._extract_token_usage(complete_response)
-            usage = None
-            if usage_info:
-                usage = TokenUsage(
-                    prompt_tokens=usage_info["prompt_tokens"],
-                    completetion_tokens=usage_info["completion_tokens"],
-                    cached_tokens=usage_info["cached_tokens"],
-                    total_tokens=usage_info["total_tokens"],
-                )
-
-            # Now stream the response for real-time UI
             response_stream = client.models.generate_content_stream(
                 model=model,
                 contents=contents,
                 config=config,
             )
 
-            # Stream chunks
+            usage_info = None
+            finish_reason = "STOP"
+            last_chunk = None
+
             for chunk in response_stream:
-                # Random delay for natural typing feel
                 delay = self._get_typing_delay()
                 await asyncio.sleep(delay)
                 if chunk.text:
@@ -123,11 +171,22 @@ class LLMClient:
                         finish_reason=None,
                         usage=None,
                     )
+                last_chunk = chunk
 
-            # Yield completion event with token usage
-            finish_reason = "STOP"
-            if complete_response.candidates and len(complete_response.candidates) > 0:
-                finish_reason = str(complete_response.candidates[0].finish_reason)
+            # usage_metadata typically appears on the final chunk
+            if last_chunk is not None:
+                usage_info = self._extract_token_usage(last_chunk)
+                if last_chunk.candidates:
+                    finish_reason = str(last_chunk.candidates[0].finish_reason)
+
+            usage = None
+            if usage_info and usage_info["total_tokens"] > 0:
+                usage = TokenUsage(
+                    prompt_tokens=usage_info["prompt_tokens"],
+                    completetion_tokens=usage_info["completion_tokens"],
+                    cached_tokens=usage_info["cached_tokens"],
+                    total_tokens=usage_info["total_tokens"],
+                )
 
             yield StreamEvent(
                 type=StreamEventType.MESSAGE_COMPLETE,
