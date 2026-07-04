@@ -1,4 +1,3 @@
-# main.py
 import asyncio
 from functools import wraps
 import sys
@@ -35,15 +34,17 @@ class CLI:
                     assistant_streaming = True
 
                 self.tui.stream_assistant_delta(content=content)
+
             elif event.type == AgentEventType.TEXT_COMPLETE:
-                assistant_streaming = False
+                final_response = event.data.get("content")
+                if assistant_streaming:
+                    assistant_streaming = False
+                    self.tui.end_assistant()
             elif event.type == AgentEventType.AGENT_ERROR:
                 error = event.data.get("ERROR", "Unknown error")
                 console.print(f"[error]Error: {error}[/error]")
-                return None
-
-        # Print a newline after the response
-        console.print()
+                if assistant_streaming:
+                    pass
 
         # Return the final response or a default message
         return final_response if final_response else "No response received"
