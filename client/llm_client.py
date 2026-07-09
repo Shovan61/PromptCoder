@@ -28,6 +28,18 @@ class LLMClient:
             )
         return self._client
 
+    def count_tokens(self, messages: list[dict[str, Any]]) -> int:
+        client = self.get_client()
+
+        contents = self._convert_messages_to_gemini_format(messages)
+
+        response = client.models.count_tokens(
+            model="gemini-3.1-flash-lite",
+            contents=contents,
+        )
+
+        return response.total_tokens
+
     async def close(self) -> None:
         self._client = None
 
