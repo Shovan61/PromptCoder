@@ -154,4 +154,4 @@ class Tool(abc.ABC):
 
             return result
 
-    raise ValueError(f"Invalid schema type for tool {self.name}: {type(schema)}")
+        raise ValueError(f"Invalid schema type for tool {self.name}: {type(schema)}")
