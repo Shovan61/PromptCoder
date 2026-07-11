@@ -89,3 +89,69 @@ class Tool(abc.ABC):
                 return [str(e)]
 
         return []
+
+    def is_mutating(self, params: dict[str, Any]) -> None:
+        return self.kind in {
+            ToolKind.WRITE,
+            ToolKind.SHELL,
+            ToolKind.NETWORK,
+            ToolKind.MEMORY,
+        }
+
+    async def get_confirmation(
+        self, invocation: ToolInvocation
+    ) -> None | ToolInvocation:
+        pass
+
+    def to_gemini_schema(self) -> dict[str, Any]:
+        # """
+        # Convert tool schema to Gemini API format.
+
+        # Gemini's function declaration format:
+        # {
+        #     "name": "function_name",
+        #     "description": "Function description",
+        #     "parameters": {
+        #         "type": "object",
+        #         "properties": {
+        #             "param1": {
+        #                 "type": "string",
+        #                 "description": "Parameter description"
+        #             }
+        #         },
+        #         "required": ["param1"]
+        #     }
+        # }
+        # """
+        schema = self.schema
+
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            # Convert Pydantic model to JSON schema
+            json_schema = model_json_schema(schema, mode="serialization")
+
+            # Gemini uses this format ->
+            return {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": json_schema.get("properties", {}),
+                    "required": json_schema.get("required", []),
+                },
+            }
+
+        if isinstance(schema, dict):
+            # If schema is already a dict, ensure it's in the right format
+            result = {
+                "name": self.name,
+                "description": self.description,
+            }
+
+            if "parameters" in schema:
+                result["parameters"] = schema["parameters"]
+            else:
+                result["parameters"] = schema
+
+            return result
+
+    raise ValueError(f"Invalid schema type for tool {self.name}: {type(schema)}")
