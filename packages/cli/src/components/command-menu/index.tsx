@@ -28,4 +28,32 @@ export function CommandMenu({
 }: CommandMenuProps) {
   const filtered = getFilteredCommands(query);
   const visibleHeight = Math.min(filtered.length, MAX_VISIBLE_ITEMS);
+
+  if (filtered.length === 0) {
+    return (
+      <box padding={1}>
+        <text attributes={TextAttributes.DIM}>No matching found!</text>
+      </box>
+    );
+  }
+
+  return (
+    <scrollbox ref={scrollRef} height={visibleHeight}>
+      {filtered.map((cmd, i) => {
+        const isSelected = i === selectedIndex;
+        return (
+          <box
+            key={cmd.value}
+            flexDirection="row"
+            paddingX={1}
+            height={1}
+            overflow="hidden"
+            backgroundColor={isSelected ? "#89B4FA" : undefined}
+            onMouseMove={() => onSelect(i)}
+            onMouseDown={() => onExecute(i)}
+          ></box>
+        );
+      })}
+    </scrollbox>
+  );
 }
