@@ -51,7 +51,18 @@ export function CommandMenu({
             backgroundColor={isSelected ? "#89B4FA" : undefined}
             onMouseMove={() => onSelect(i)}
             onMouseDown={() => onExecute(i)}
-          ></box>
+          >
+            <box width={COMMAND_COL_WIDTH} flexShrink={0}>
+              <text selectable={false} fg={isSelected ? "black" : "white"}>
+                /{cmd.name}
+              </text>
+            </box>
+            <box flexGrow={1} flexShrink={1} overflow="hidden">
+              <text selectable={false} fg={isSelected ? "black" : "gray"}>
+                {cmd.description}
+              </text>
+            </box>
+          </box>
         );
       })}
     </scrollbox>
