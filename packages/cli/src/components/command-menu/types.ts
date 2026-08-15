@@ -4,12 +4,12 @@
 
 export type CommandContext = {
   exit: () => void;
-//   toast: ToastContextValue;
-//   dialog: DialogContextValue;
-//   navigate: (path: string) => void;
-//   mode: ModeType;
-//   setMode: (mode: ModeType) => void;
-//   setModel: (model: SupportedChatModelId) => void;
+  //   toast: ToastContextValue;
+  //   dialog: DialogContextValue;
+  navigate: (path: string) => void;
+  //   mode: ModeType;
+  //   setMode: (mode: ModeType) => void;
+  //   setModel: (model: SupportedChatModelId) => void;
 };
 
 export type Command = {

@@ -1,6 +1,7 @@
-import { createCliRenderer, ConsolePosition } from "@opentui/core";
+import { createCliRenderer, TextAttributes } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { Header } from "./components/header";
+import { StatusBar } from "./components/status-bar";
 import { InputBar } from "./components/input-bar";
 
 function App() {
@@ -21,16 +22,6 @@ function App() {
   );
 }
 
-const renderer = await createCliRenderer({
-  consoleOptions: {
-    position: ConsolePosition.BOTTOM, // TOP, LEFT, RIGHT
-    sizePercent: 30,
-    colorInfo: "#00FFFF",
-    colorWarn: "#FFFF00",
-    colorError: "#FF0000",
-    startInDebugMode: false // Show file/line info
-  },
-  // Auto-open on error in dev mode
-  openConsoleOnError: true
-})
+const renderer = await createCliRenderer();
+
 createRoot(renderer).render(<App />);

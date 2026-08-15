@@ -43,22 +43,26 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     setSelectedIndex,
   } = useCommandMenu();
 
+  // Store the selected command to execute on second Enter
+  const pendingCommandRef = useRef<Command | null>(null);
+
   const handleCommand = useCallback(
     (command: Command | undefined) => {
       const textarea = textareaRef.current;
       if (!textarea || !command) return;
 
+      // Clear the textarea
       textarea.setText("");
 
-      if (command.action) {
-        command.action({
-          exit: () => renderer.destroy(),
-        });
-      } else {
-        textarea.insertText(command.value + " ");
-      }
+      // Store command as pending
+      pendingCommandRef.current = command;
+
+      // Insert the command text (e.g., "/exit") into textarea
+      textarea.insertText(command.value + " ");
+      
+      // Command will be executed on the next Enter press
     },
-    [renderer],
+    [],
   );
 
   const handleTextareaContentChange = useCallback(() => {
@@ -67,6 +71,11 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
 
     const text = textarea.plainText;
 
+    // Clear pending command if user types something else
+    if (pendingCommandRef.current && text !== pendingCommandRef.current.value + " ") {
+      pendingCommandRef.current = null;
+    }
+
     handleContentChange(textarea.plainText);
   }, [handleContentChange]);
 
@@ -74,17 +83,31 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     if (disabled) return;
 
     const textarea = textareaRef.current;
-
     if (!textarea) return;
 
     const text = textarea.plainText.trim();
 
     if (text.length === 0) return;
 
-    onSubmit(text);
+    // Check if this is a command we need to execute
+    if (pendingCommandRef.current && text === pendingCommandRef.current.value) {
+      // Execute the pending command
+      const command = pendingCommandRef.current;
+      if (command.action) {
+        command.action({
+          exit: () => renderer.destroy(),
+          navigate: () => null,
+        });
+      }
+      pendingCommandRef.current = null;
+      // ✅ Don't call setText() here - the renderer may be destroyed
+      return;
+    }
 
+    // Normal submit
+    onSubmit(text);
     textarea.setText("");
-  }, [disabled, onSubmit]);
+  }, [disabled, onSubmit, renderer]);
 
   // Wire up textarea submit handler once so it always reads the latest state.
   useEffect(() => {
@@ -116,12 +139,9 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     [resolveCommand, handleCommand],
   );
 
-  // process.stdout.write(`showCommandMenu: ${showCommandMenu}\n`);
-
   return (
     <box
       border={["left"]}
-      //   borderColor={mode === Mode.BUILD ? colors.primary : colors.planMode}
       customBorderChars={{
         ...EmptyBorder,
         vertical: "┃",
@@ -150,7 +170,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
               zIndex={10}
             >
               <CommandMenu
-                query={""}
+                query={commandQuery}
                 selectedIndex={selectedIndex}
                 scrollRef={scrollRef}
                 onSelect={setSelectedIndex}

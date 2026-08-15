@@ -11,7 +11,7 @@ export function StatusBar() {
     <box flexDirection="row" gap={1}>
       <text
         //   fg={mode === Mode.PLAN ? colors.planMode : colors.primary}
-        fg={"#0D0D12"}
+        fg={"#5f5fc1"}
       >
         {/* {mode === Mode.PLAN ? "Plan" : "Build"} */}
         Build

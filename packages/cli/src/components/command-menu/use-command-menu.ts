@@ -22,6 +22,7 @@ export function useCommandMenu(): UseCommandMenuReturn {
 
   const commandQuery =
     showCommandMenu && textValue.startsWith("/") ? textValue.slice(1) : "";
+
   const filteredCommands = useMemo(
     () => getFilteredCommands(commandQuery),
     [commandQuery],
