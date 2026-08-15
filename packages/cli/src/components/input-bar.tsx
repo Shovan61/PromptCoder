@@ -61,6 +61,15 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     [renderer],
   );
 
+  const handleTextareaContentChange = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const text = textarea.plainText;
+
+    handleContentChange(textarea.plainText);
+  }, [handleContentChange]);
+
   const handleSubmit = useCallback(() => {
     if (disabled) return;
 
@@ -99,6 +108,10 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     handleSubmit();
   };
 
+  const handleCommandExecute = useCallback((index: number) => {
+    const command = resolveCommand(index)
+  }, []);
+
   return (
     <box
       border={["left"]}
@@ -132,18 +145,20 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
             >
               <CommandMenu
                 query={""}
-                // selectedIndex={selectedIndex}
-                // scrollRef={scrollRef}
-                // onSelect={setSelectedIndex}
+                selectedIndex={selectedIndex}
+                scrollRef={scrollRef}
+                onSelect={setSelectedIndex}
                 // onExecute={handleCommandExecute}
               />
             </box>
           </>
         )}
         <textarea
+          ref={textareaRef}
           focused={disabled}
           placeholder={`Ask anything..... "Fix a bug in the database"`}
           keyBindings={TEXTAREA_KEY_BINDINGS}
+          onContentChange={handleTextareaContentChange}
         />
         <StatusBar />
       </box>

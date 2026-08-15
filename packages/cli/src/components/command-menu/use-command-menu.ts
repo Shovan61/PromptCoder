@@ -41,15 +41,23 @@ export function useCommandMenu(): UseCommandMenuReturn {
 
     if (prefix !== null && !prefix.includes(" ")) {
       setShowCommandMenu(true);
+      close();
     } else {
       setShowCommandMenu(false);
+      close();
     }
+  };
+
+  const close = () => {
+    setShowCommandMenu(false);
+    // pop("command");
   };
 
   // Resolve a command at a specific index (returns the command, caller handles execution)
   const resolveCommand = (index: number): Command | undefined => {
     const command = filteredCommands[index];
     if (command) {
+      close();
     }
     return command;
   };
@@ -60,6 +68,7 @@ export function useCommandMenu(): UseCommandMenuReturn {
 
     if (key.name === "escape") {
       key.preventDefault();
+      close();
     } else if (key.name === "up") {
       key.preventDefault();
       setSelectedIndex((i: number) => {
