@@ -41,10 +41,8 @@ export function useCommandMenu(): UseCommandMenuReturn {
 
     if (prefix !== null && !prefix.includes(" ")) {
       setShowCommandMenu(true);
-      close();
     } else {
       setShowCommandMenu(false);
-      close();
     }
   };
 

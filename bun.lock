@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "promptcoder",
+      "devDependencies": {
+        "@types/node": "^26.2.0",
+      },
     },
     "packages/cli": {
       "name": "@promptcoder/cli",

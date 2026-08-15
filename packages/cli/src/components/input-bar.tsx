@@ -108,9 +108,15 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     handleSubmit();
   };
 
-  const handleCommandExecute = useCallback((index: number) => {
-    const command = resolveCommand(index)
-  }, []);
+  const handleCommandExecute = useCallback(
+    (index: number) => {
+      const command = resolveCommand(index);
+      handleCommand(command);
+    },
+    [resolveCommand, handleCommand],
+  );
+
+  // process.stdout.write(`showCommandMenu: ${showCommandMenu}\n`);
 
   return (
     <box
@@ -133,7 +139,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
         width="100%"
         gap={1}
       >
-        {true && (
+        {showCommandMenu && (
           <>
             <box
               position="absolute"
@@ -148,7 +154,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
                 selectedIndex={selectedIndex}
                 scrollRef={scrollRef}
                 onSelect={setSelectedIndex}
-                // onExecute={handleCommandExecute}
+                onExecute={handleCommandExecute}
               />
             </box>
           </>
