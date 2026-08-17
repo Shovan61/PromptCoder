@@ -22,6 +22,9 @@ function App() {
   );
 }
 
-const renderer = await createCliRenderer();
+const renderer = await createCliRenderer({
+  exitOnCtrlC: false,
+  targetFps: 60,
+});
 
 createRoot(renderer).render(<App />);
