@@ -13,6 +13,7 @@ import type { TextareaRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useRenderer } from "@opentui/react";
 import { useCommandMenu } from "./command-menu/use-command-menu";
 import type { Command } from "./command-menu/types";
+import { useToast } from "../providers/toast";
 
 type Props = {
   onSubmit: (text: string) => void;
@@ -32,6 +33,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   const mentionScrollRef = useRef<ScrollBoxRenderable>(null);
 
   const renderer = useRenderer();
+  const toast = useToast();
 
   const {
     showCommandMenu,
@@ -46,24 +48,21 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   // Store the selected command to execute on second Enter
   const pendingCommandRef = useRef<Command | null>(null);
 
-  const handleCommand = useCallback(
-    (command: Command | undefined) => {
-      const textarea = textareaRef.current;
-      if (!textarea || !command) return;
+  const handleCommand = useCallback((command: Command | undefined) => {
+    const textarea = textareaRef.current;
+    if (!textarea || !command) return;
 
-      // Clear the textarea
-      textarea.setText("");
+    // Clear the textarea
+    textarea.setText("");
 
-      // Store command as pending
-      pendingCommandRef.current = command;
+    // Store command as pending
+    pendingCommandRef.current = command;
 
-      // Insert the command text (e.g., "/exit") into textarea
-      textarea.insertText(command.value + " ");
-      
-      // Command will be executed on the next Enter press
-    },
-    [],
-  );
+    // Insert the command text (e.g., "/exit") into textarea
+    textarea.insertText(command.value + " ");
+
+    // Command will be executed on the next Enter press
+  }, []);
 
   const handleTextareaContentChange = useCallback(() => {
     const textarea = textareaRef.current;
@@ -72,7 +71,10 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     const text = textarea.plainText;
 
     // Clear pending command if user types something else
-    if (pendingCommandRef.current && text !== pendingCommandRef.current.value + " ") {
+    if (
+      pendingCommandRef.current &&
+      text !== pendingCommandRef.current.value + " "
+    ) {
       pendingCommandRef.current = null;
     }
 
@@ -96,6 +98,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
       if (command.action) {
         command.action({
           exit: () => renderer.destroy(),
+          toast,
           navigate: () => null,
         });
       }
@@ -107,7 +110,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     // Normal submit
     onSubmit(text);
     textarea.setText("");
-  }, [disabled, onSubmit, renderer]);
+  }, [disabled, onSubmit, renderer, toast]);
 
   // Wire up textarea submit handler once so it always reads the latest state.
   useEffect(() => {
