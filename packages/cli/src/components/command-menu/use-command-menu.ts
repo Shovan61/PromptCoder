@@ -69,7 +69,7 @@ export function useCommandMenu(): UseCommandMenuReturn {
 
   // Arrow keys move selection; the list follows along when the highlight goes off-screen
   useKeyboard((key) => {
-    if (!showCommandMenu) return;
+    if (!showCommandMenu || !isTopLayer("command")) return;
 
     if (key.name === "escape") {
       key.preventDefault();
