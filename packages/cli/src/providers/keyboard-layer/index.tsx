@@ -14,6 +14,7 @@ type KeyboardLayerContextValue = {
   pop: (id: string) => void;
   isTopLayer: (id: string) => boolean;
   setResponder: (id: string, responder: Responder | null) => void;
+  exitApp: () => void;
 };
 
 const KeyboardLayerContext = createContext<KeyboardLayerContextValue | null>(
@@ -31,6 +32,12 @@ export function KeyboardLayerProvider({
 
   const responders = useRef<Map<string, Responder>>(new Map());
   const renderer = useRenderer();
+
+  const exitApp = useCallback(() => {
+    renderer.destroy();
+    // Give the renderer a tick to restore the terminal, then hard-exit.
+    setTimeout(() => process.exit(0), 50);
+  }, [renderer]);
 
   const push = useCallback((id: string, responder?: Responder) => {
     if (responder) {
@@ -83,12 +90,12 @@ export function KeyboardLayerProvider({
     }
 
     // No responder handled it — exit
-    renderer.destroy();
+    exitApp();
   });
 
   return (
     <KeyboardLayerContext.Provider
-      value={{ push, pop, isTopLayer, setResponder }}
+      value={{ push, pop, isTopLayer, setResponder, exitApp }}
     >
       {children}
     </KeyboardLayerContext.Provider>

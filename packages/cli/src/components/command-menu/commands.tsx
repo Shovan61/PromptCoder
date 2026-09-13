@@ -26,28 +26,35 @@ export const COMMANDS: Command[] = [
     name: "agents",
     description: "Switch agents",
     value: "/agents",
-    // action: (ctx) => {
-    //   ctx.dialog.open({
-    //     title: "Select Agent",
-    //     children: <AgentsDialogContent currentMode={ctx.mode} onSelectMode={ctx.setMode} />,
-    //   })
-    // },
+    action: (ctx) => {
+      ctx.dialog.open({
+        title: "Select Agent",
+        children: (
+          // <AgentsDialogContent
+          //   currentMode={ctx.mode}
+          //   onSelectMode={ctx.setMode}
+          // />
+          <text>Modal selection comming soon</text>
+        ),
+      });
+    },
   },
   {
     name: "models",
     description: "Select AI model for generation",
     value: "/models",
-    // action: (ctx) => {
-    //   ctx.dialog.open({
-    //     title: "Select Model",
-    //     children: (
-    //       <ModelsDialogContent
-    //         models={SUPPORTED_CHAT_MODELS.map((model) => model.id)}
-    //         onSelectModel={ctx.setModel}
-    //       />
-    //     ),
-    //   })
-    // },
+    action: (ctx) => {
+      ctx.dialog.open({
+        title: "Select Model",
+        children: (
+          // <ModelsDialogContent
+          //   models={SUPPORTED_CHAT_MODELS.map((model) => model.id)}
+          //   onSelectModel={ctx.setModel}
+          // />
+          <text>Modal selection comming soon</text>
+        ),
+      });
+    },
   },
   {
     name: "sessions",

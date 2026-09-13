@@ -15,6 +15,7 @@ import { useCommandMenu } from "./command-menu/use-command-menu";
 import type { Command } from "./command-menu/types";
 import { useToast } from "../providers/toast";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
+import { useDialog } from "../providers/dialog";
 
 type Props = {
   onSubmit: (text: string) => void;
@@ -33,10 +34,19 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   const onSubmitRef = useRef<() => void>(() => {});
   const mentionScrollRef = useRef<ScrollBoxRenderable>(null);
 
+  // Number of onContentChange events to ignore while we programmatically
+  // mutate the textarea (e.g. clearing it after running a command).
+  const skipContentChangesRef = useRef(0);
+
   const renderer = useRenderer();
   const toast = useToast();
 
-  const { isTopLayer, push, pop, setResponder } = useKeyboardLayer();
+  useEffect(() => {
+    // This makes the console visible in your terminal
+    renderer.console.show();
+  }, [renderer]);
+
+  const { isTopLayer, push, pop, setResponder, exitApp } = useKeyboardLayer();
 
   const {
     showCommandMenu,
@@ -48,37 +58,37 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     setSelectedIndex,
   } = useCommandMenu();
 
-  // Store the selected command to execute on second Enter
-  const pendingCommandRef = useRef<Command | null>(null);
+  const dialog = useDialog();
 
-  const handleCommand = useCallback((command: Command | undefined) => {
-    const textarea = textareaRef.current;
-    if (!textarea || !command) return;
+  // --- Run a command immediately (one Enter = execute) ---
+  const runCommand = useCallback(
+    (command: Command | undefined) => {
+      const textarea = textareaRef.current;
+      if (!textarea || !command) return;
 
-    // Clear the textarea
-    textarea.setText("");
+      // Swallow the content-change event triggered by setText("") below
+      // so we don't reopen the command menu.
+      skipContentChangesRef.current += 1;
+      textarea.setText("");
 
-    // Store command as pending
-    pendingCommandRef.current = command;
-
-    // Insert the command text (e.g., "/exit") into textarea
-    textarea.insertText(command.value + " ");
-
-    // Command will be executed on the next Enter press
-  }, []);
+      command.action?.({
+        exit: () => exitApp(),
+        toast,
+        dialog,
+        navigate: () => null,
+      });
+    },
+    [renderer, toast, dialog],
+  );
 
   const handleTextareaContentChange = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const text = textarea.plainText;
-
-    // Clear pending command if user types something else
-    if (
-      pendingCommandRef.current &&
-      text !== pendingCommandRef.current.value + " "
-    ) {
-      pendingCommandRef.current = null;
+    // Ignore programmatic mutations
+    if (skipContentChangesRef.current > 0) {
+      skipContentChangesRef.current -= 1;
+      return;
     }
 
     handleContentChange(textarea.plainText);
@@ -91,31 +101,15 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     if (!textarea) return;
 
     const text = textarea.plainText.trim();
-
     if (text.length === 0) return;
 
-    // Check if this is a command we need to execute
-    if (pendingCommandRef.current && text === pendingCommandRef.current.value) {
-      // Execute the pending command
-      const command = pendingCommandRef.current;
-      if (command.action) {
-        command.action({
-          exit: () => renderer.destroy(),
-          toast,
-          navigate: () => null,
-        });
-      }
-      pendingCommandRef.current = null;
-      // ✅ Don't call setText() here - the renderer may be destroyed
-      return;
-    }
-
-    // Normal submit
+    // Normal (non-command) submit
     onSubmit(text);
+    skipContentChangesRef.current += 1;
     textarea.setText("");
-  }, [disabled, onSubmit, renderer, toast]);
+  }, [disabled, onSubmit]);
 
-  // Wire up textarea submit handler once so it always reads the latest state.
+  // Wire up the textarea submit handler once so it always reads latest state.
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -128,9 +122,10 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   onSubmitRef.current = () => {
     if (disabled) return;
 
+    // If the command menu is open, run the highlighted command immediately.
     if (showCommandMenu) {
       const command = resolveCommand(selectedIndex);
-      handleCommand(command);
+      runCommand(command);
       return;
     }
 
@@ -140,9 +135,9 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   const handleCommandExecute = useCallback(
     (index: number) => {
       const command = resolveCommand(index);
-      handleCommand(command);
+      runCommand(command);
     },
-    [resolveCommand, handleCommand],
+    [resolveCommand, runCommand],
   );
 
   // Register the base layer responder for ctrl+c dismissal
@@ -151,13 +146,14 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
       if (disabled) return false;
       const textarea = textareaRef.current;
       if (textarea && textarea.plainText.length > 0) {
+        skipContentChangesRef.current += 1;
         textarea.setText("");
         return true;
       }
 
       return false;
     });
-  }, []);
+  }, [disabled, setResponder]);
 
   return (
     <box
@@ -180,28 +176,26 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
         gap={1}
       >
         {showCommandMenu && (
-          <>
-            <box
-              position="absolute"
-              bottom="100%"
-              left={0}
-              width="100%"
-              backgroundColor={"#1A1A24"}
-              zIndex={10}
-            >
-              <CommandMenu
-                query={commandQuery}
-                selectedIndex={selectedIndex}
-                scrollRef={scrollRef}
-                onSelect={setSelectedIndex}
-                onExecute={handleCommandExecute}
-              />
-            </box>
-          </>
+          <box
+            position="absolute"
+            bottom="100%"
+            left={0}
+            width="100%"
+            backgroundColor={"#1A1A24"}
+            zIndex={10}
+          >
+            <CommandMenu
+              query={commandQuery}
+              selectedIndex={selectedIndex}
+              scrollRef={scrollRef}
+              onSelect={setSelectedIndex}
+              onExecute={handleCommandExecute}
+            />
+          </box>
         )}
         <textarea
           ref={textareaRef}
-          focused={!disabled && (isTopLayer("based") || isTopLayer("command"))}
+          focused={!disabled && (isTopLayer("base") || isTopLayer("command"))}
           placeholder={`Ask anything..... "Fix a bug in the database"`}
           keyBindings={TEXTAREA_KEY_BINDINGS}
           onContentChange={handleTextareaContentChange}
