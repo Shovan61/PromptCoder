@@ -41,10 +41,10 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
   const renderer = useRenderer();
   const toast = useToast();
 
-  useEffect(() => {
-    // This makes the console visible in your terminal
-    renderer.console.show();
-  }, [renderer]);
+  // useEffect(() => {
+  //   // This makes the console visible in your terminal
+  //   renderer.console.show();
+  // }, [renderer]);
 
   const { isTopLayer, push, pop, setResponder, exitApp } = useKeyboardLayer();
 
