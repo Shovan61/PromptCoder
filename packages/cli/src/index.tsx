@@ -6,6 +6,7 @@ import { ToastProvider } from "./providers/toast";
 import { KeyboardLayerProvider } from "./providers/keyboard-layer";
 import { DialogProvider } from "./providers/dialog";
 import { ThemeProvider } from "./providers/theme";
+import { ThemedRoot } from "./layouts/themed.root";
 
 function App() {
   return (
@@ -13,7 +14,13 @@ function App() {
       <KeyboardLayerProvider>
         <DialogProvider>
           <ToastProvider>
-            <box
+            <ThemedRoot>
+              <Header />
+              <box width={"100%"} maxWidth={78} paddingX={2}>
+                <InputBar onSubmit={() => {}} />
+              </box>
+            </ThemedRoot>
+            {/* <box
               backgroundColor="#0D0D12"
               width={"100%"}
               height={"100%"}
@@ -25,7 +32,7 @@ function App() {
               <box width={"100%"} maxWidth={78} paddingX={2}>
                 <InputBar onSubmit={() => {}} />
               </box>
-            </box>
+            </box> */}
           </ToastProvider>
         </DialogProvider>
       </KeyboardLayerProvider>
